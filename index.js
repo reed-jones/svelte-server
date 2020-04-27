@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import Koa from 'koa'
 import { join, resolve } from 'path'
 import minimist from 'minimist'
