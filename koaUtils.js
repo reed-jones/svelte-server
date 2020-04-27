@@ -57,16 +57,15 @@ export const startWebSocket = ({ app, options, server, watcher }) => {
       return console.log('No URL...')
     }
 
-    const route = options.routes.find(
-      route => route.url === url && route.file === path
-    )
+    const route = options.routes.find(route => route.url === url)
 
-    if (!route) {
-      return console.log('Not Active File')
-    }
-
+    // need to re-compile current route to check updated dependency tree
     const file = (await read({ route })) ?? (await bundle({ route }, options))
-    send({ type: 'change', path: file.dom, name: file.name })
+
+    // only send updates of required
+    if (file.dependencies.includes(path)) {
+      send({ type: 'change', path: file.dom, name: path.replace(join(resolve(), '/'), '') })
+    }
   })
 
   watcher.on('unlink', async path => {

@@ -48,30 +48,39 @@ const options = {
   routes: [],
 }
 
-const watcher = chokidar.watch(join(options.root, '**/*.svelte'))
+const watcher = chokidar.watch(join(resolve(), '(pages|components)', '**/*.svelte'))
 
 watcher
   .on('unlink', path => {
     options.logging.log(
       `[${chalk.red('File Removed')}]: ${path.replace(options.root, '')}`
     )
+
     // delete from routes
     const idx = options.routes.findIndex(file => file.file === path)
-    options.routes.splice(idx, 1)
-    // delete from cache
-    data.delete({ key: path })
+    if (idx >= 0) {
+
+      options.routes.splice(idx, 1)
+      // delete from cache
+      data.delete({ key: path })
+    }
   })
   .on('add', path => {
     options.logging.log(
-      `[${chalk.blue('File Added')}]:   ${path.replace(options.root, '')}`
+      `[${chalk.blue('File Added')}]: ${path.replace(options.root, '')}`
     )
-    options.routes.push(createRoute(options.root, path))
+    if (path.startsWith(options.root)) {
+      options.routes.push(createRoute(options.root, path))
+    }
   })
   .on('change', key => {
     options.logging.log(
       `[${chalk.green('File Updated')}]: ${key.replace(options.root, '')}`
     )
-    data.delete({ key })
+    const parentOrChild = [...data.cache()].find(d => d.dependencies.includes(key))
+    if (parentOrChild) {
+      data.delete({ key: parentOrChild.key })
+    }
   })
 
 const app = new Koa()

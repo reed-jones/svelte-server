@@ -6,6 +6,21 @@ import sveltePlugin from 'rollup-plugin-svelte'
 import { existsSync, mkdirSync, writeFileSync, unlinkSync } from 'fs'
 import { join, resolve } from 'path'
 import chalk from 'chalk'
+import crypto from 'crypto'
+
+const generateFingerprint = (name, source) => {
+  let hash = crypto.createHash('sha1')
+  hash.update(Buffer.from(source))
+  let sha = hash.digest('hex').substr(0, 16)
+  let [filename, extension] = name
+    .split('/')
+    .slice(0)
+    .reverse()
+    .shift()
+    .split('.')
+
+  return `${filename}-${sha}.js`
+}
 
 export default async function bundle({ route }, options) {
   const stopTimer = options.logging.start(
@@ -13,7 +28,7 @@ export default async function bundle({ route }, options) {
   )
 
   const name = `${route.relative}.js` // Index.svelte.js
-  // const raw = readFileSync(route.file).toString()
+
   const componentName = name
     .split('.') // split on extension
     .find(a => true) // get before extension
@@ -24,16 +39,19 @@ export default async function bundle({ route }, options) {
   if (!existsSync(options.output)) {
     mkdirSync(options.output)
   }
-
-  writeFileSync(
-    join(options.output, `component.js`),
-    `import ${componentName} from '..${route.file.replace(
-      options.root,
-      options.root.replace(resolve(), '')
-    )}';
+  const entrySource = `import ${componentName} from '..${route.file.replace(
+    options.root,
+    options.root.replace(resolve(), '')
+  )}';
 export default ${componentName};
 typeof window !== 'undefined' && new ${componentName}({ target: document.body, hydrate: true });
 `
+
+  const generatedFileName = generateFingerprint(componentName, entrySource)
+
+  writeFileSync(
+    join(options.output, generatedFileName),
+    entrySource
   )
 
   const SSROptions = {
@@ -56,7 +74,7 @@ typeof window !== 'undefined' && new ${componentName}({ target: document.body, h
 
   const [ssrRollup, domRollup] = await Promise.all([
     rollup.rollup({
-      input: join(options.output, 'component.js'),
+      input: join(options.output, generatedFileName),
       plugins: [
         sveltePlugin(SSROptions),
         nodeResolve({
@@ -67,7 +85,7 @@ typeof window !== 'undefined' && new ${componentName}({ target: document.body, h
       ],
     }),
     rollup.rollup({
-      input: join(options.output, 'component.js'),
+      input: join(options.output, generatedFileName),
       plugins: [
         sveltePlugin(DOMOptions),
         nodeResolve({
@@ -79,7 +97,10 @@ typeof window !== 'undefined' && new ${componentName}({ target: document.body, h
     }),
   ])
 
-  unlinkSync(join(options.output, `component.js`))
+  const watchFiles = domRollup.watchFiles.filter(a => !a.includes(`.generated`) && !a.includes('node_modules'))
+
+  // TODO: Only in housekeeping mode
+  unlinkSync(join(options.output, generatedFileName))
 
   const [ssrModule, domModule, domNoModule] = await Promise.all([
     ssrRollup.generate({ format: 'esm' }),
@@ -96,6 +117,7 @@ typeof window !== 'undefined' && new ${componentName}({ target: document.body, h
       dom: domModule.output[0].code,
       iife: domNoModule.output[0].code,
       name,
+      dependencies: watchFiles
     },
     options
   )

@@ -5,7 +5,7 @@ import data from './data.js'
 import { put } from './filesystem.js'
 import chalk from 'chalk'
 
-const generateFingerprint = (name, mode, source) => {
+const generateFingerprint = (name, source) => {
   let hash = crypto.createHash('sha1')
   hash.update(Buffer.from(source))
   let sha = hash.digest('hex').substr(0, 12)
@@ -16,17 +16,17 @@ const generateFingerprint = (name, mode, source) => {
     .shift()
     .split('.')
 
-  return `${filename}-${mode}-${sha}.js`
+  return `${filename}-${sha}.js`
 }
 
-export default async function write({ file, ssr, dom, name, iife }, options) {
+export default async function write({ file, ssr, dom, name, iife, dependencies }, options) {
   // If the cache key was supplied, then don't bother with fingerprinting
   const stopWriting = options.logging.start(
     `[${chalk.yellow('Caching')}]: ${name}`
   )
-  const SSRFingerprint = generateFingerprint(name, 'ssr', ssr)
-  const DOMFingerprint = generateFingerprint(name, 'dom', dom)
-  const IIFEFingerprint = generateFingerprint(name, 'iife', iife)
+  const SSRFingerprint = generateFingerprint(name, ssr)
+  const DOMFingerprint = generateFingerprint(name, dom)
+  const IIFEFingerprint = generateFingerprint(name, iife)
 
   // write file to disk. so it can be 'import' ed
   fs.writeFileSync(join(resolve(), SSRFingerprint), ssr)
@@ -46,6 +46,7 @@ export default async function write({ file, ssr, dom, name, iife }, options) {
     iife: IIFEFingerprint,
     file,
     name,
+    dependencies
   }
 
   // Save to cache manifest
