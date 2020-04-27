@@ -1,40 +1,24 @@
-import { join } from "path"
-import { readdirSync, statSync } from "fs"
-
-export const walkSync = (dir, fileList = null) => {
-  const files = readdirSync(dir)
-  fileList = fileList ?? []
-  files.forEach(file => {
-    if (statSync(join(dir, file)).isDirectory()) {
-      fileList = walkSync(join(dir, file, "/"), fileList)
-    } else {
-      fileList.push(join(dir, file))
-    }
-  })
-  return fileList
-}
+import { join } from 'path'
 
 export const createRoute = (root, file) => {
-  const relative = file.replace(join(root, "/"), "")
+  const relative = file.replace(join(root, '/'), '')
 
   const kebabUrl = relative
     // splits folders & filenames
-    .split("/")
+    .split('/')
     // removes index.svelte, .svelte
-    .map(a => Pascal2Kebab(a).replace(/(\/?index)?\.svelte$/, ""))
+    .map(a => Pascal2Kebab(a).replace(/(\/?index)?\.svelte$/, ''))
     // removes any 'empty' sections (likely index.svelte)
     .filter(a => a)
     // join into a url
-    .join("/")
+    .join('/')
 
   return {
-    url: join("/", kebabUrl),
+    url: join('/', kebabUrl),
     file: file,
     relative,
   }
 }
-
-export const findRoutes = root => walkSync(root).map(file => createRoute(root, file))
 
 export const logging = log => {
   return log
@@ -64,10 +48,10 @@ export const Pascal2Kebab = str =>
     idx ? `-${letter.toLowerCase()}` : letter.toLowerCase()
   )
 export const Snake2Pascal = str =>
-  str.replace(/(^|_)[a-z]/g, letter => letter.toUpperCase().replace("_", ""))
+  str.replace(/(^|_)[a-z]/g, letter => letter.toUpperCase().replace('_', ''))
 export const Snake2Camel = str =>
   str.replace(/_[a-z]/g, letter => letter[1].toUpperCase())
 export const Kebab2Pascal = str =>
-  str.replace(/(^|-)[a-z]/g, letter => letter.toUpperCase().replace("-", ""))
+  str.replace(/(^|-)[a-z]/g, letter => letter.toUpperCase().replace('-', ''))
 export const Kebab2Camel = str =>
   str.replace(/-[a-z]/g, letter => letter[1].toUpperCase())
