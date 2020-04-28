@@ -68,7 +68,7 @@ typeof window !== 'undefined' && new ${componentName}({ target: document.body, h
 
   const DOMOptions = {
     generate: 'dom',
-    css: !!options.hmr,
+    css: true,
     dev: !options.production,
     hydratable: true,
     name: componentName,
