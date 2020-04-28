@@ -84,7 +84,7 @@ watcher
     options.logging.log(
       `[${chalk.green('File Updated')}]: ${key.replace(options.root, '')}`
     )
-    const parentOrChild = [...data.cache()].find(d =>
+    const parentOrChild = data.cache().find(d =>
       d.dependencies.includes(key)
     )
     if (parentOrChild) {

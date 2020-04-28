@@ -30,7 +30,13 @@
     "ws": "^7.2.5"
   },
   "devDependencies": {
+    "babel-jest": "^25.4.0",
+    "esm": "^3.2.25",
+    "jest": "^25.4.0",
     "nodemon": "^2.0.3",
     "rimraf": "^3.0.2"
+  },
+  "scripts": {
+    "test": "jest"
   }
 }
