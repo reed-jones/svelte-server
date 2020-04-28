@@ -19,7 +19,8 @@ const generateFingerprint = (name, source) => {
   return `${filename}-${sha}.js`
 }
 
-export default async function write({ file, ssr, dom, name, iife, dependencies }, options) {
+export default async function write({ file, ssr, dom, name, iife, dependencies }, { options, route, props }) {
+
   // If the cache key was supplied, then don't bother with fingerprinting
   const stopWriting = options.logging.start(
     `[${chalk.yellow('Caching')}]: ${name}`
@@ -33,7 +34,7 @@ export default async function write({ file, ssr, dom, name, iife, dependencies }
   const { default: renderer } = await import(join(resolve(), SSRFingerprint))
   fs.unlinkSync(join(resolve(), SSRFingerprint))
 
-  const out = renderer.render({})
+  const out = renderer.render(props)
 
   put(SSRFingerprint.replace('.js', '.json'), JSON.stringify(out))
   put(DOMFingerprint, dom)

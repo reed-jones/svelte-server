@@ -1,5 +1,10 @@
 import { join } from 'path'
 
+const parseParams = (url, params = []) => [
+  url.replace(/\[-(.+?)\]/g, (a,r) => params.push(r) && `:${r.toLowerCase()}`),
+  params
+]
+
 export const createRoute = (root, file) => {
   const relative = file.replace(join(root, '/'), '')
 
@@ -13,9 +18,12 @@ export const createRoute = (root, file) => {
     // join into a url
     .join('/')
 
+  const [url, params] = parseParams(join('/', kebabUrl));
+
   return {
-    url: join('/', kebabUrl),
-    file: file,
+    url,
+    params,
+    file,
     relative,
   }
 }

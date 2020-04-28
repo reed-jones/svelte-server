@@ -9,6 +9,35 @@ import bundle from './shared/bundle.js'
 import chalk from 'chalk'
 import WebSocket from 'ws'
 
+const routesMatch = (r1, r2) => {
+  r1 = r1.split('/').filter(a => a)
+  r2 = r2.split('/').filter(a => a)
+  return (
+    r1.length === r2.length &&
+    r1.every((cur, idx) => cur.startsWith(':') || cur === r2[idx])
+  )
+}
+const getParams = (r1, r2) => {
+  r1 = r1.split('/').filter(a => a)
+  r2 = r2.split('/').filter(a => a)
+  return r1.reduce((acc, cur, idx) => cur.startsWith(':') ? { ...acc, [cur.slice(1)]: r2[idx] } : acc, {})
+}
+
+export const parseUrlParams = ({ app, options, server, watcher }) => {
+  app.use(async (ctx, next) => {
+    // find & set the current route
+    app.context.route = options.routes.find(route => routesMatch(route.url, ctx.url))
+
+    if (ctx.route) {
+      // if a route was found, set params
+      const params = getParams(ctx.route.url, ctx.url)
+      app.context.route.params = Object.keys(params).length ? params : null
+    }
+
+    return next()
+  })
+}
+
 export const startWebSocket = ({ app, options, server, watcher }) => {
   if (!options.hmr) {
     return
@@ -57,14 +86,18 @@ export const startWebSocket = ({ app, options, server, watcher }) => {
       return console.log('No URL...')
     }
 
-    const route = options.routes.find(route => route.url === url)
+    const route = options.routes.find(route => routesMatch(route.url, url))
 
     // need to re-compile current route to check updated dependency tree
     const file = (await read({ route })) ?? (await bundle({ route }, options))
 
     // only send updates of required
     if (file.dependencies.includes(path)) {
-      send({ type: 'change', path: file.dom, name: path.replace(join(resolve(), '/'), '') })
+      send({
+        type: 'change',
+        path: file.dom,
+        name: path.replace(join(resolve(), '/'), ''),
+      })
     }
   })
 
@@ -98,9 +131,8 @@ export const dynamicallyAddJs = ({ app, options }) =>
 export const serveSSRPage = ({ app, options }) =>
   app.use(async (ctx, next) => {
     // lookup route by url
-    const route = options.routes.find(route => route.url === ctx.url)
-
-    if (!route) {
+    // const route = options.routes.find(route => routesMatch(route.url, ctx.url))
+    if (!ctx.route) {
       return next()
     }
 
@@ -114,8 +146,12 @@ export const serveSSRPage = ({ app, options }) =>
     const ssrTimer = options.logging.start(
       `[${chalk.green('SSR')}]: ${ctx.url}`
     )
+
     // read file details from cache, or bundle if unavailable
-    let file = (await read({ route })) ?? (await bundle({ route }, options))
+    // routes with params cannot be cached (currently)
+    const file = !ctx.route.params
+      ? (await read({ route: ctx.route })) ?? (await bundle({ route: ctx.route }, options))
+      : await bundle({ route:ctx.route }, options)
 
     // Get bundled SSR details from memory
     const out = JSON.parse(get(file.ssr))
@@ -131,12 +167,18 @@ export const serveSSRPage = ({ app, options }) =>
     ].join('')
 
     // compile template & return the result
-    const html = ejs.render(readFileSync(options.template, 'utf-8'), {
-      head: out.head,
-      style: `<style>${out.css.code}</style>`,
-      script,
-      html: out.html,
-    })
+    const html = ejs.render(
+      readFileSync(options.template, 'utf-8'),
+      {
+        head: out.head,
+        style: `<style>${out.css.code}</style>`,
+        script,
+        html: out.html,
+      },
+      {
+        rmWhitespace: true,
+      }
+    )
 
     ssrTimer()
 

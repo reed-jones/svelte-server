@@ -4,6 +4,7 @@ import { join, resolve } from 'path'
 import minimist from 'minimist'
 import { logging, createRoute } from './utils.js'
 import {
+  parseUrlParams,
   servePublicFolder,
   serveSSRPage,
   dynamicallyAddJs,
@@ -14,6 +15,7 @@ import chokidar from 'chokidar'
 import data from './shared/data.js'
 import chalk from 'chalk'
 import http from 'http'
+import { existsSync } from 'fs'
 
 const args = minimist(process.argv.slice(2))
 
@@ -33,7 +35,7 @@ const options = {
   root,
 
   // html template file
-  template: join(resolve(), args.template ?? 'index.template.html'),
+  template: join(resolve(), args.template ?? 'index.template.ejs'),
 
   // path to public folder... will be served statically
   public: args.public ? join(resolve(), args.public) : null,
@@ -46,9 +48,15 @@ const options = {
 
   // All found routes (will be updated via chokidar)
   routes: [],
+
+  userConfig: existsSync(join(resolve(), 'setup.js'))
+    ? import(join(resolve(), 'setup.js')).then(a => a.default)
+    : Promise.resolve(null),
 }
 
-const watcher = chokidar.watch(join(resolve(), '(pages|components)', '**/*.svelte'))
+const watcher = chokidar.watch(
+  join(resolve(), '(pages|components)', '**/*.svelte')
+)
 
 watcher
   .on('unlink', path => {
@@ -59,7 +67,6 @@ watcher
     // delete from routes
     const idx = options.routes.findIndex(file => file.file === path)
     if (idx >= 0) {
-
       options.routes.splice(idx, 1)
       // delete from cache
       data.delete({ key: path })
@@ -77,24 +84,32 @@ watcher
     options.logging.log(
       `[${chalk.green('File Updated')}]: ${key.replace(options.root, '')}`
     )
-    const parentOrChild = [...data.cache()].find(d => d.dependencies.includes(key))
+    const parentOrChild = [...data.cache()].find(d =>
+      d.dependencies.includes(key)
+    )
     if (parentOrChild) {
       data.delete({ key: parentOrChild.key })
     }
   })
 
-const app = new Koa()
-const server = http.createServer(app.callback())
 
-const serverOptions = [
-  servePublicFolder,
-  serveSSRPage,
-  dynamicallyAddJs,
-  startWebSocket,
-  start,
-].reduce((serverOptions, m) => (m(serverOptions), serverOptions), {
-  app,
-  options,
-  server,
-  watcher,
+// Wait for the user config to be loaded before starting the app
+options.userConfig.then(async a => {
+  options.userConfig = a
+  const app = new Koa()
+  const server = http.createServer(app.callback())
+
+  const serverOptions = [
+    parseUrlParams,
+    servePublicFolder,
+    serveSSRPage,
+    dynamicallyAddJs,
+    startWebSocket,
+    start,
+  ].reduce((serverOptions, m) => (m(serverOptions), serverOptions), {
+    app,
+    options,
+    server,
+    watcher,
+  })
 })

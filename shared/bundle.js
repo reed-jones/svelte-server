@@ -39,12 +39,15 @@ export default async function bundle({ route }, options) {
   if (!existsSync(options.output)) {
     mkdirSync(options.output)
   }
+
+  const props = await options.userConfig?.props?.[route.url]?.(route.params ?? {}) ?? await Promise.resolve({})
+
   const entrySource = `import ${componentName} from '..${route.file.replace(
     options.root,
     options.root.replace(resolve(), '')
   )}';
 export default ${componentName};
-typeof window !== 'undefined' && new ${componentName}({ target: document.body, hydrate: true });
+typeof window !== 'undefined' && new ${componentName}({ target: document.body, hydrate: true, props: ${JSON.stringify(props)} });
 `
 
   const generatedFileName = generateFingerprint(componentName, entrySource)
@@ -77,10 +80,7 @@ typeof window !== 'undefined' && new ${componentName}({ target: document.body, h
       input: join(options.output, generatedFileName),
       plugins: [
         sveltePlugin(SSROptions),
-        nodeResolve({
-          browser: true,
-          dedupe: ['svelte'],
-        }),
+        nodeResolve({ browser: true, dedupe: ['svelte'] }),
         options.production && terser.terser(),
       ],
     }),
@@ -88,10 +88,7 @@ typeof window !== 'undefined' && new ${componentName}({ target: document.body, h
       input: join(options.output, generatedFileName),
       plugins: [
         sveltePlugin(DOMOptions),
-        nodeResolve({
-          browser: true,
-          dedupe: ['svelte'],
-        }),
+        nodeResolve({ browser: true, dedupe: ['svelte'] }),
         options.production && terser.terser(),
       ],
     }),
@@ -119,6 +116,6 @@ typeof window !== 'undefined' && new ${componentName}({ target: document.body, h
       name,
       dependencies: watchFiles
     },
-    options
+    { options, route, props }
   )
 }
