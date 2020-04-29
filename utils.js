@@ -1,7 +1,8 @@
 import { join } from 'path'
+import crypto from 'crypto'
 
-const parseParams = (url, params = []) => [
-  url.replace(/\[-(.+?)\]/g, (a,r) => params.push(r) && `:${r.toLowerCase()}`),
+export const parseParams = (url, params = []) => [
+  url.toLowerCase().replace(/\[-?(.+?)\]/g, (a,r) => params.push(r) && `:${r}`),
   params
 ]
 
@@ -42,6 +43,22 @@ export const logging = log => {
         error: () => {},
         start: () => () => {},
       }
+}
+
+export const generateFingerprint = (name, source) => {
+  let hash = crypto.createHash('sha1')
+  hash.update(Buffer.from(source))
+  let sha = hash.digest('hex').substr(0, 12)
+  let [filename, extension] = name
+    .split('/')
+    .slice(0)
+    .reverse()
+    .shift()
+    .split('.')
+
+   // extension should always be .js
+  // in some cases, .svelte is what is incoming
+  return `${filename}-${sha}.js`
 }
 
 /**

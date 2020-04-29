@@ -4,7 +4,7 @@ import { join, resolve } from 'path'
 import ejs from 'ejs'
 import { get } from './shared/filesystem.js'
 import serve from 'koa-static'
-import read from './shared/cache-read.js'
+import {read} from './shared/cache-read.js'
 import bundle from './shared/bundle.js'
 import chalk from 'chalk'
 import WebSocket from 'ws'
@@ -89,7 +89,7 @@ export const startWebSocket = ({ app, options, server, watcher }) => {
     const route = options.routes.find(route => routesMatch(route.url, url))
 
     // need to re-compile current route to check updated dependency tree
-    const file = (await read({ route })) ?? (await bundle({ route }, options))
+    const file = read({ route }) ?? (await bundle({ route }, options))
 
     // only send updates of required
     if (file.dependencies.includes(path)) {
@@ -145,7 +145,7 @@ export const serveSSRPage = ({ app, options }) =>
 
     // read file details from cache, or bundle if unavailable
     // routes with params cannot be cached (currently)
-    const file = (await read({ route: ctx.route })) ?? (await bundle({ route: ctx.route }, options))
+    const file = read({ route: ctx.route }) ?? (await bundle({ route: ctx.route }, options))
 
     // Get bundled SSR details from memory
     const { default: renderer } = await import(get(file.ssr))

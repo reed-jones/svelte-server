@@ -1,5 +1,5 @@
 import * as rollup from 'rollup'
-import write from './cache-write.js'
+import { write } from './cache-write.js'
 import terser from 'rollup-plugin-terser'
 import nodeResolve from '@rollup/plugin-node-resolve'
 import sveltePlugin from 'rollup-plugin-svelte'
@@ -8,29 +8,44 @@ import { join, resolve } from 'path'
 import chalk from 'chalk'
 import crypto from 'crypto'
 import tmpPromise from 'tmp-promise'
+import data from './data.js'
 
+export const getRollupPlugins = (name, options) => {
+  const sharedOptions = {
+    css: true,
+    dev: !options.production,
+    name,
+    filename: name,
+  }
 
-const generateFingerprint = (name, source) => {
-  let hash = crypto.createHash('sha1')
-  hash.update(Buffer.from(source))
-  let sha = hash.digest('hex').substr(0, 16)
-  let [filename, extension] = name
-    .split('/')
-    .slice(0)
-    .reverse()
-    .shift()
-    .split('.')
-
-  return `${filename}-${sha}.js`
+  return {
+    svelteSSR: sveltePlugin({
+      generate: 'ssr',
+      hydratable: false,
+      ...sharedOptions,
+    }),
+    svelteDOM: sveltePlugin({
+      generate: 'dom',
+      hydratable: true,
+      ...sharedOptions,
+    }),
+    nodeResolve: nodeResolve({
+      browser: true,
+      dedupe: ['svelte'],
+    }),
+    terser: options.production && terser.terser(),
+  }
 }
 
 export default async function bundle({ route }, options) {
-  const stopTimer = options.logging.start(
+  const bundleTimer = options.logging.start(
     chalk.yellow('Bundling'),
     route.relative
   )
 
-  const name = `${route.relative}.js` // Index.svelte.js
+  // Rollup seems to require all files to end in .js
+  // Index.svelte.js
+  const name = `${route.relative}.js`
 
   const componentName = name
     .split('.') // split on extension
@@ -43,60 +58,37 @@ export default async function bundle({ route }, options) {
     mkdirSync(options.public)
   }
 
-  const relative = route.file.replace(
-      options.root,
-      options.root.replace(resolve(), '')
+  const [ssrRollup, domRollup, watchFiles] = await tmpPromise.withFile(
+    async ({ path:temp_path }) => {
+      // Save the file to disk temporarily so that
+      // rollup can find for the 'entry' (input)
+      writeFileSync(
+        temp_path,
+        `import ${componentName} from '${route.file}';export default ${componentName};typeof window !== 'undefined' && new ${componentName}({ target: document.body, hydrate: true, props: window.__SVELTE_PROPS__ });`
+      )
+
+      const plugins = getRollupPlugins(componentName, options)
+
+      const [ssrRollup, domRollup] = await Promise.all([
+        rollup.rollup({
+          input: temp_path,
+          plugins: [plugins.svelteSSR, plugins.nodeResolve, plugins.terser],
+        }),
+        rollup.rollup({
+          input: temp_path,
+          plugins: [plugins.svelteDOM, plugins.nodeResolve, plugins.terser],
+        }),
+      ])
+
+      // watch all tracked dependencies
+      // temp path and node_modules not invited
+      const watchFiles = domRollup.watchFiles.filter(watched =>
+        ['node_modules', temp_path].every(blacklist => !watched.includes(blacklist))
+      )
+
+      return [ssrRollup, domRollup, watchFiles]
+    }
   )
-
-  const entrySource = `import ${componentName} from '${route.file}';export default ${componentName};typeof window !== 'undefined' && new ${componentName}({ target: document.body, hydrate: true, props: window.__SVELTE_PROPS__ });`
-  // const { path, cleanup } = await tmpPromise.file();
-  // writeFileSync(path, entrySource)
-
-
-  const SSROptions = {
-    generate: 'ssr',
-    css: true,
-    dev: !options.production,
-    hydratable: false,
-    name: componentName,
-    filename: componentName,
-  }
-
-  const DOMOptions = {
-    generate: 'dom',
-    css: true,
-    dev: !options.production,
-    hydratable: true,
-    name: componentName,
-    filename: componentName,
-  }
-  const [ssrRollup, domRollup] = await tmpPromise.withFile(async ({ path }) => {
-    // Save the file to disk temporarily so that
-    // rollup can find for the 'entry'(input)
-    writeFileSync(path, entrySource)
-
-    return Promise.all([
-      rollup.rollup({
-        input: path,
-        plugins: [
-          sveltePlugin(SSROptions),
-          nodeResolve({ browser: true, dedupe: ['svelte'] }),
-          options.production && terser.terser(),
-        ],
-      }),
-      rollup.rollup({
-        input: path,
-        plugins: [
-          sveltePlugin(DOMOptions),
-          nodeResolve({ browser: true, dedupe: ['svelte'] }),
-          options.production && terser.terser(),
-        ],
-      }),
-    ])
-  })
-
-  // watch all tracked dependencies
-  const watchFiles = domRollup.watchFiles.filter(a => !a.includes('node_modules'))
 
   // generate the output bundles
   const [ssrModule, domModule, domNoModule] = await Promise.all([
@@ -105,17 +97,31 @@ export default async function bundle({ route }, options) {
     domRollup.generate({ format: 'iife', name: componentName }), // nomodule
   ])
 
-  stopTimer()
+  // generate fingerprints & save to disk
+  const [SSRFingerprint, DOMFingerprint, IIFEFingerprint] = [
+    // need to base64 encode it for the SSR here, so that when we need to
+    // we can simply call import(code) at have it available
+    `data:text/javascript;base64,${Buffer.from(
+      ssrModule.output[0].code
+    ).toString('base64')}`,
+    domModule.output[0].code,
+    domNoModule.output[0].code,
+  ].map(code => write(name, code))
 
-  return write(
-    {
-      file: route.file,
-      ssr: ssrModule.output[0].code,
-      dom: domModule.output[0].code,
-      iife: domNoModule.output[0].code,
-      name,
-      dependencies: watchFiles,
-    },
-    { options }
-  )
+  const cacheData = {
+    key: route.file,
+    ssr: SSRFingerprint,
+    dom: DOMFingerprint,
+    iife: IIFEFingerprint,
+    file: route.file,
+    name,
+    dependencies: watchFiles,
+  }
+
+  // Save to cache manifest
+  data.set(cacheData)
+
+  bundleTimer()
+
+  return cacheData
 }
