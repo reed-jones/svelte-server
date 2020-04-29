@@ -1,7 +1,7 @@
 import { join } from 'path'
 import crypto from 'crypto'
 
-export const parseParams = (url, params = []) => [
+export const parseRawParams = (url, params = []) => [
   url.toLowerCase().replace(/\[-?(.+?)\]/g, (a,r) => params.push(r) && `:${r}`),
   params
 ]
@@ -19,7 +19,7 @@ export const createRoute = (root, file) => {
     // join into a url
     .join('/')
 
-  const [url, params] = parseParams(join('/', kebabUrl));
+  const [url, params] = parseRawParams(join('/', kebabUrl));
 
   return {
     url,

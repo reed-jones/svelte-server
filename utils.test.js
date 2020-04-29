@@ -1,4 +1,4 @@
-import { generateFingerprint, parseParams, Pascal2Kebab, Pascal2Snake, Kebab2Camel, Kebab2Pascal, Snake2Camel, Snake2Pascal } from './utils.js'
+import { generateFingerprint, parseRawParams, Pascal2Kebab, Pascal2Snake, Kebab2Camel, Kebab2Pascal, Snake2Camel, Snake2Pascal } from './utils.js'
 
 it('generates a unique deterministic fingerprint', () => {
   const f1 = generateFingerprint('test.txt', 'Hello World')
@@ -6,7 +6,7 @@ it('generates a unique deterministic fingerprint', () => {
 })
 
 it('parses a url into its different parameters', () => {
-  const [url, params] = parseParams('/Authors/[Author]/Posts/[-Post]/Tests/[-Test]')
+  const [url, params] = parseRawParams('/Authors/[Author]/Posts/[-Post]/Tests/[-Test]')
   expect(url).toBe('/authors/:author/posts/:post/tests/:test')
   expect(params.length).toBe(3)
   expect(params).toEqual(['author', 'post', 'test'])

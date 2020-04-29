@@ -4,36 +4,60 @@ import { join, resolve } from 'path'
 import ejs from 'ejs'
 import { get } from './shared/filesystem.js'
 import serve from 'koa-static'
-import {read} from './shared/cache-read.js'
+import { read } from './shared/cache-read.js'
 import bundle from './shared/bundle.js'
 import chalk from 'chalk'
 import WebSocket from 'ws'
 
-const routesMatch = (r1, r2) => {
+export const routesMatch = (r1, r2) => {
+  // break into url segments
   r1 = r1.split('/').filter(a => a)
   r2 = r2.split('/').filter(a => a)
-  return (
-    r1.length === r2.length &&
-    r1.every((cur, idx) => cur.startsWith(':') || cur === r2[idx])
-  )
+
+  if (r1.length !== r2.length) {
+    // the routes have a different number of segments & can't match
+    // e.g.   /author/:author/posts/:post => 4 segments
+    //        /home => 1 segment
+    return false
+  }
+
+  // if the segment starts with ':' then its a paramter and must by matched dynamically
+  // (no restrictions). if it does not, it must be the exact same
+  // e.g.   /authors/:author/posts/:post
+  //        /authors/testing/posts/whatever
+  return r1.every((cur, idx) => cur.startsWith(':') || cur === r2[idx])
 }
-const getParams = (r1, r2) => {
+export const getParams = (r1, r2) => {
   r1 = r1.split('/').filter(a => a)
   r2 = r2.split('/').filter(a => a)
-  return r1.reduce((acc, cur, idx) => cur.startsWith(':') ? { ...acc, [cur.slice(1)]: r2[idx] } : acc, {})
+  return r1.reduce(
+    (acc, cur, idx) =>
+      cur.startsWith(':') ? { ...acc, [cur.slice(1)]: r2[idx] } : acc,
+    null
+  )
 }
 
 export const parseUrlParams = ({ app, options, server, watcher }) => {
   app.use(async (ctx, next) => {
     // find & set the current route
-    app.context.route = options.routes.find(route => routesMatch(route.url, ctx.url))
+    app.context.route = options.routes.find(route =>
+      routesMatch(route.url, ctx.url)
+    )
 
     if (ctx.route) {
-      // if a route was found, set params
+      // if a route was found, get parsed params
       const params = getParams(ctx.route.url, ctx.url)
-      app.context.route.params = Object.keys(params).length ? params : null
+
+      // user supplied setup.js callback function, this return value is used to hydrate the props
+      // of the component. If no function is provided, just resolve the (possibly empty) props
+      // ctx.route.props
+      const propCallback =
+        options.userConfig?.props?.[ctx.route.url] ??
+        Promise.resolve.bind(Promise)
+      app.context.route.props = await propCallback(params)
     }
 
+    // all following routes will (or will not) have ctx.route attached
     return next()
   })
 }
@@ -113,6 +137,7 @@ export const dynamicallyAddJs = ({ app, options }) =>
     if (!ctx.url.startsWith('/_js/')) {
       return next()
     }
+
     const cacheTimer = options.logging.start(chalk.green('From cache'), ctx.url)
 
     const name = ctx.url.replace('/_js/', '') // remove '_js' flag
@@ -123,6 +148,54 @@ export const dynamicallyAddJs = ({ app, options }) =>
     ctx.type = 'js'
     ctx.body = file
   })
+
+/**
+ *
+ * @param {object} file
+ * @param {string} file.ssr base64 encoded compiled ssr template
+ * @param {string} file.dom path to module import file
+ * @param {string} file iife path to no-module import file
+ * @param {route} route
+ * @param {object} route.props all props (user supplied from setup.js & url params)
+ * @param {object} options middleware options
+ */
+const renderTemplate = async ({ ssr, dom, iife }, { props }, options) => {
+  // Get bundled SSR details from memory
+  const { default: renderer } = await import(get(ssr))
+
+  // Render cached Svelte SSR template with current props
+  const out = renderer.render(props)
+
+  const script = [
+    // hydrate client side props
+    props &&
+      `<script>window.__SVELTE_PROPS__=${JSON.stringify(props)}</script>`,
+
+    // modern module script
+    `<script src=${join('/', '_js', `${dom}`)} type=module></script>`,
+
+    // no-module script (older browsers and things...)
+    `<script nomodule src=${join('/', '_js', `${iife}`)}></script>`,
+
+    // hot reloading... ok I know its not the webpack HMR, but still
+    options.hmr && `<script src=/@hmr-client type=module></script>`,
+  ].join('')
+
+  // compile template & return the result
+  // TODO: in production, just read the template once & cache it?
+  return ejs.render(
+    readFileSync(options.template, 'utf-8'),
+    {
+      head: out.head,
+      style: `<style>${out.css.code}</style>`,
+      script,
+      html: out.html,
+    },
+    {
+      rmWhitespace: true,
+    }
+  )
+}
 
 // serve the SSR'd page, and pass the dynamic js arguments
 // to the compiled template
@@ -145,41 +218,14 @@ export const serveSSRPage = ({ app, options }) =>
 
     // read file details from cache, or bundle if unavailable
     // routes with params cannot be cached (currently)
-    const file = read({ route: ctx.route }) ?? (await bundle({ route: ctx.route }, options))
-
-    // Get bundled SSR details from memory
-    const { default: renderer } = await import(get(file.ssr))
-    const props = await options.userConfig?.props?.[ctx.route.url]?.(ctx.route.params ?? {}) ?? await Promise.resolve({})
-    const out = renderer.render(props)
-    // Prefix the script tag with '/_js/' so we know which ones to dynamically replace
-    const domPath = join('/', '_js', `${file.dom}`)
-    const iifePath = join('/', '_js', `${file.iife}`)
-
-    const script = [
-      Object.keys(props).length && `<script>window.__SVELTE_PROPS__=${JSON.stringify(props)}</script>`,
-      `<script src=${domPath} type=module></script>`,
-      options.hmr && `<script src=/@hmr-client type=module></script>`,
-      `<script nomodule src=${iifePath}></script>`,
-    ].join('')
-
-    // compile template & return the result
-    const html = ejs.render(
-      readFileSync(options.template, 'utf-8'),
-      {
-        head: out.head,
-        style: `<style>${out.css.code}</style>`,
-        script,
-        html: out.html,
-      },
-      {
-        rmWhitespace: true,
-      }
-    )
-
-    ssrTimer()
+    const file =
+      read({ route: ctx.route }) ??
+      (await bundle({ route: ctx.route }, options))
 
     ctx.type = 'html'
-    ctx.body = html
+    ctx.body = renderTemplate(file, ctx.route, options)
+
+    ssrTimer()
   })
 
 // serve the public folder if available

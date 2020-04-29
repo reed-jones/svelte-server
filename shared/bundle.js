@@ -54,10 +54,6 @@ export default async function bundle({ route }, options) {
     .reverse() // put file name before path
     .find(a => true) // grab the first found
 
-  if (!existsSync(options.public)) {
-    mkdirSync(options.public)
-  }
-
   const [ssrRollup, domRollup, watchFiles] = await tmpPromise.withFile(
     async ({ path:temp_path }) => {
       // Save the file to disk temporarily so that
