@@ -113,9 +113,7 @@ export const dynamicallyAddJs = ({ app, options }) =>
     if (!ctx.url.startsWith('/_js/')) {
       return next()
     }
-    const cacheTimer = options.logging.start(
-      `[${chalk.green('From cache')}]: ${ctx.url}`
-    )
+    const cacheTimer = options.logging.start(chalk.green('From cache'), ctx.url)
 
     const name = ctx.url.replace('/_js/', '') // remove '_js' flag
     const file = get(name)
@@ -143,24 +141,22 @@ export const serveSSRPage = ({ app, options }) =>
       return next()
     }
 
-    const ssrTimer = options.logging.start(
-      `[${chalk.green('SSR')}]: ${ctx.url}`
-    )
+    const ssrTimer = options.logging.start(chalk.green('SSR'), ctx.url)
 
     // read file details from cache, or bundle if unavailable
     // routes with params cannot be cached (currently)
-    const file = !ctx.route.params
-      ? (await read({ route: ctx.route })) ?? (await bundle({ route: ctx.route }, options))
-      : await bundle({ route:ctx.route }, options)
+    const file = (await read({ route: ctx.route })) ?? (await bundle({ route: ctx.route }, options))
 
     // Get bundled SSR details from memory
-    const out = JSON.parse(get(file.ssr))
-
+    const { default: renderer } = await import(get(file.ssr))
+    const props = await options.userConfig?.props?.[ctx.route.url]?.(ctx.route.params ?? {}) ?? await Promise.resolve({})
+    const out = renderer.render(props)
     // Prefix the script tag with '/_js/' so we know which ones to dynamically replace
     const domPath = join('/', '_js', `${file.dom}`)
     const iifePath = join('/', '_js', `${file.iife}`)
 
     const script = [
+      Object.keys(props).length && `<script>window.__SVELTE_PROPS__=${JSON.stringify(props)}</script>`,
       `<script src=${domPath} type=module></script>`,
       options.hmr && `<script src=/@hmr-client type=module></script>`,
       `<script nomodule src=${iifePath}></script>`,

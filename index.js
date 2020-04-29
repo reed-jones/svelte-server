@@ -17,6 +17,26 @@ import chalk from 'chalk'
 import http from 'http'
 import { existsSync } from 'fs'
 
+/**
+ * Future Programmatic API...
+ *
+import { svelteServer } from 'svelteServer'
+const config = {
+  // all available options
+}
+svelteServer
+  .config(config) // optional - use defaults if not provided
+  .listen(3000) // optional port # - finds first free port if not supplied
+
+// alternatively
+
+import { middleware as svelteServerMiddleware } from 'svelte-server'
+const app = new Koa()
+const server = http.createServer(app.callback())
+app.use(svelteServerMiddleware(server, options))
+
+ */
+
 const args = minimist(process.argv.slice(2))
 
 const root = join(resolve(), args.path ?? './pages')
@@ -60,9 +80,7 @@ const watcher = chokidar.watch(
 
 watcher
   .on('unlink', path => {
-    options.logging.log(
-      `[${chalk.red('File Removed')}]: ${path.replace(options.root, '')}`
-    )
+    options.logging.log(chalk.red('File Removed'), path.replace(options.root, ''))
 
     // delete from routes
     const idx = options.routes.findIndex(file => file.file === path)
@@ -73,17 +91,13 @@ watcher
     }
   })
   .on('add', path => {
-    options.logging.log(
-      `[${chalk.blue('File Added')}]: ${path.replace(options.root, '')}`
-    )
+    options.logging.log(chalk.blue('File Added'), path.replace(options.root, ''))
     if (path.startsWith(options.root)) {
       options.routes.push(createRoute(options.root, path))
     }
   })
   .on('change', key => {
-    options.logging.log(
-      `[${chalk.green('File Updated')}]: ${key.replace(options.root, '')}`
-    )
+    options.logging.log(chalk.green('File Updated'), key.replace(options.root, ''))
     const parentOrChild = data.cache().find(d =>
       d.dependencies.includes(key)
     )

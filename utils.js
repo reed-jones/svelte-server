@@ -31,10 +31,10 @@ export const createRoute = (root, file) => {
 export const logging = log => {
   return log
     ? {
-        log: (...args) => console.log(...args),
-        warn: (...args) => console.warn(...args),
-        error: (...args) => console.error(...args),
-        start: name => (console.time(name), () => console.timeEnd(name)),
+        log: (label, ...args) => console.log(`${`[${ label }]:`.padEnd(32)}`, ...args),
+        warn: (label, ...args) => console.warn(`${`[${ label }]:`.padEnd(32)}`, ...args),
+        error: (label, ...args) => console.error(`${`[${ label }]:`.padEnd(32)}`, ...args),
+        start: label => (console.time(`${`[${ label }]:`.padEnd(32)}`), () => console.timeEnd(`${`[${ label }]:`.padEnd(32)}`)),
       }
     : {
         log: () => {},

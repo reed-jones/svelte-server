@@ -7,6 +7,8 @@ import { existsSync, mkdirSync, writeFileSync, unlinkSync } from 'fs'
 import { join, resolve } from 'path'
 import chalk from 'chalk'
 import crypto from 'crypto'
+import tmpPromise from 'tmp-promise'
+
 
 const generateFingerprint = (name, source) => {
   let hash = crypto.createHash('sha1')
@@ -24,7 +26,8 @@ const generateFingerprint = (name, source) => {
 
 export default async function bundle({ route }, options) {
   const stopTimer = options.logging.start(
-    `[${chalk.yellow('Bundling')}]: ${route.relative}`
+    chalk.yellow('Bundling'),
+    route.relative
   )
 
   const name = `${route.relative}.js` // Index.svelte.js
@@ -36,26 +39,19 @@ export default async function bundle({ route }, options) {
     .reverse() // put file name before path
     .find(a => true) // grab the first found
 
-  if (!existsSync(options.output)) {
-    mkdirSync(options.output)
+  if (!existsSync(options.public)) {
+    mkdirSync(options.public)
   }
 
-  const props = await options.userConfig?.props?.[route.url]?.(route.params ?? {}) ?? await Promise.resolve({})
-
-  const entrySource = `import ${componentName} from '..${route.file.replace(
-    options.root,
-    options.root.replace(resolve(), '')
-  )}';
-export default ${componentName};
-typeof window !== 'undefined' && new ${componentName}({ target: document.body, hydrate: true, props: ${JSON.stringify(props)} });
-`
-
-  const generatedFileName = generateFingerprint(componentName, entrySource)
-
-  writeFileSync(
-    join(options.output, generatedFileName),
-    entrySource
+  const relative = route.file.replace(
+      options.root,
+      options.root.replace(resolve(), '')
   )
+
+  const entrySource = `import ${componentName} from '${route.file}';export default ${componentName};typeof window !== 'undefined' && new ${componentName}({ target: document.body, hydrate: true, props: window.__SVELTE_PROPS__ });`
+  // const { path, cleanup } = await tmpPromise.file();
+  // writeFileSync(path, entrySource)
+
 
   const SSROptions = {
     generate: 'ssr',
@@ -74,33 +70,37 @@ typeof window !== 'undefined' && new ${componentName}({ target: document.body, h
     name: componentName,
     filename: componentName,
   }
+  const [ssrRollup, domRollup] = await tmpPromise.withFile(async ({ path }) => {
+    // Save the file to disk temporarily so that
+    // rollup can find for the 'entry'(input)
+    writeFileSync(path, entrySource)
 
-  const [ssrRollup, domRollup] = await Promise.all([
-    rollup.rollup({
-      input: join(options.output, generatedFileName),
-      plugins: [
-        sveltePlugin(SSROptions),
-        nodeResolve({ browser: true, dedupe: ['svelte'] }),
-        options.production && terser.terser(),
-      ],
-    }),
-    rollup.rollup({
-      input: join(options.output, generatedFileName),
-      plugins: [
-        sveltePlugin(DOMOptions),
-        nodeResolve({ browser: true, dedupe: ['svelte'] }),
-        options.production && terser.terser(),
-      ],
-    }),
-  ])
+    return Promise.all([
+      rollup.rollup({
+        input: path,
+        plugins: [
+          sveltePlugin(SSROptions),
+          nodeResolve({ browser: true, dedupe: ['svelte'] }),
+          options.production && terser.terser(),
+        ],
+      }),
+      rollup.rollup({
+        input: path,
+        plugins: [
+          sveltePlugin(DOMOptions),
+          nodeResolve({ browser: true, dedupe: ['svelte'] }),
+          options.production && terser.terser(),
+        ],
+      }),
+    ])
+  })
 
-  const watchFiles = domRollup.watchFiles.filter(a => !a.includes(`.generated`) && !a.includes('node_modules'))
+  // watch all tracked dependencies
+  const watchFiles = domRollup.watchFiles.filter(a => !a.includes('node_modules'))
 
-  // TODO: Only in housekeeping mode
-  unlinkSync(join(options.output, generatedFileName))
-
+  // generate the output bundles
   const [ssrModule, domModule, domNoModule] = await Promise.all([
-    ssrRollup.generate({ format: 'esm' }),
+    ssrRollup.generate({ format: 'esm' }), // ssr
     domRollup.generate({ format: 'esm' }), // module
     domRollup.generate({ format: 'iife', name: componentName }), // nomodule
   ])
@@ -114,8 +114,8 @@ typeof window !== 'undefined' && new ${componentName}({ target: document.body, h
       dom: domModule.output[0].code,
       iife: domNoModule.output[0].code,
       name,
-      dependencies: watchFiles
+      dependencies: watchFiles,
     },
-    { options, route, props }
+    { options }
   )
 }
