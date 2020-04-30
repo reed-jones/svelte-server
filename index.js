@@ -4,11 +4,11 @@ import { join, resolve } from 'path'
 import minimist from 'minimist'
 import { logging, createRoute } from './utils.js'
 import {
-  parseUrlParams,
-  servePublicFolder,
-  serveSSRPage,
-  dynamicallyAddJs,
-  startWebSocket,
+  applyBundledJSMiddleware,
+  applyPublicMiddleware,
+  applyRouteContextMiddleware,
+  applySSRMiddleware,
+  applyWebsocketMiddleware,
   start,
 } from './koaUtils.js'
 import chokidar from 'chokidar'
@@ -80,7 +80,10 @@ const watcher = chokidar.watch(
 
 watcher
   .on('unlink', path => {
-    options.logging.log(chalk.red('File Removed'), path.replace(options.root, ''))
+    options.logging.log(
+      chalk.red('File Removed'),
+      path.replace(options.root, '')
+    )
 
     // delete from routes
     const idx = options.routes.findIndex(file => file.file === path)
@@ -91,21 +94,24 @@ watcher
     }
   })
   .on('add', path => {
-    options.logging.log(chalk.blue('File Added'), path.replace(options.root, ''))
+    options.logging.log(
+      chalk.blue('File Added'),
+      path.replace(options.root, '')
+    )
     if (path.startsWith(options.root)) {
       options.routes.push(createRoute(options.root, path))
     }
   })
   .on('change', key => {
-    options.logging.log(chalk.green('File Updated'), key.replace(options.root, ''))
-    const parentOrChild = data.cache().find(d =>
-      d.dependencies.includes(key)
+    options.logging.log(
+      chalk.green('File Updated'),
+      key.replace(options.root, '')
     )
+    const parentOrChild = data.cache().find(d => d.dependencies.includes(key))
     if (parentOrChild) {
       data.delete({ key: parentOrChild.key })
     }
   })
-
 
 // Wait for the user config to be loaded before starting the app
 options.userConfig.then(async a => {
@@ -113,12 +119,12 @@ options.userConfig.then(async a => {
   const app = new Koa()
   const server = http.createServer(app.callback())
 
-  const serverOptions = [
-    parseUrlParams,
-    servePublicFolder,
-    serveSSRPage,
-    dynamicallyAddJs,
-    startWebSocket,
+  ;[
+    applyRouteContextMiddleware,
+    applyPublicMiddleware,
+    applySSRMiddleware,
+    applyBundledJSMiddleware,
+    applyWebsocketMiddleware,
     start,
   ].reduce((serverOptions, m) => (m(serverOptions), serverOptions), {
     app,
