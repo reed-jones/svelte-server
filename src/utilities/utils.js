@@ -105,7 +105,7 @@ export const Kebab2Camel = str =>
  */
 export const renderTemplate = async (
   { ssr, dom, iife },
-  { props },
+  props,
   options
 ) => {
 
@@ -113,7 +113,7 @@ export const renderTemplate = async (
   const { default: renderer } = await import(get(ssr))
 
   // Render cached Svelte SSR template with current props
-  const out = renderer.render(props ?? {})
+  const out = renderer.render(props)
 
   const script = [
     // hydrate client side props
@@ -121,13 +121,13 @@ export const renderTemplate = async (
       `<script>window.__SVELTE_PROPS__=${JSON.stringify(props)}</script>`,
 
     // modern module script
-    `<script src=${join('/', '_js', `${dom}`)} type=module></script>`,
+    `<script src=${join('/', '_js', `${dom}`)} type=module async defer></script>`,
 
     // no-module script (older browsers and things...)
-    `<script src=${join('/', '_js', `${iife}`)} nomodule></script>`,
+    `<script src=${join('/', '_js', `${iife}`)} nomodule async defer></script>`,
 
     // hot reloading... ok I know its not the webpack HMR, but still
-    options.hmr && `<script src=/@hmr-client type=module></script>`,
+    options.hmr && `<script src=/@hmr-client type=module async defer></script>`,
   ].join('')
 
   // compile template & return the result

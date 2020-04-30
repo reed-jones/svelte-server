@@ -6,11 +6,11 @@ import { routesMatch } from '../utilities/utils.js'
 
 const watcherUnlinked = ({ send }) => async path => send({ type: 'unlink' })
 const watchedChanged = ({ send, options, url }) => async path => {
-  if (!url) {
+  if (!url.url) {
     return console.log('No URL...')
   }
 
-  const route = options.routes.find(route => routesMatch(route.url, url))
+  const route = options.routes.find(route => routesMatch(route.url, url.url))
 
   // need to re-compile current route to check updated dependency tree
   const file = read({ route }) ?? (await bundle({ route }, options))
@@ -35,7 +35,7 @@ export const connectWebsockets = ({ options, server, watcher }) => {
   const sockets = new Set()
   const send = sendToSockets(sockets)
 
-  let url = null
+  const url = {}
 
   wss.on('connection', (socket, req) => {
     sockets.add(socket)
@@ -46,7 +46,7 @@ export const connectWebsockets = ({ options, server, watcher }) => {
       const { type, url: _url } = JSON.parse(data)
       switch (type) {
         case 'handshake':
-          url = _url
+          url.url = _url
           break
       }
     })

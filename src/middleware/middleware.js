@@ -86,7 +86,7 @@ export const serveRenderedHTML = ({ options }) => async (ctx, next) => {
     read({ route: ctx.route }) ?? (await bundle({ route: ctx.route }, options))
 
   ctx.type = 'html'
-  ctx.body = await renderTemplate(file, ctx.route, options)
+  ctx.body = await renderTemplate(file, ctx.route.props, options)
 
   ssrTimer()
 }
