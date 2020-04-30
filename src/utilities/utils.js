@@ -3,11 +3,13 @@ import crypto from 'crypto'
 import { readFileSync } from 'fs'
 import ejs from 'ejs'
 
-import { get } from './shared/filesystem.js'
+import { get } from '../shared/filesystem.js'
 
 export const parseRawParams = (url, params = []) => [
-  url.toLowerCase().replace(/\[-?(.+?)\]/g, (a,r) => params.push(r) && `:${r}`),
-  params
+  url
+    .toLowerCase()
+    .replace(/\[-?(.+?)\]/g, (a, r) => params.push(r) && `:${r}`),
+  params,
 ]
 
 export const createRoute = (root, file) => {
@@ -23,7 +25,7 @@ export const createRoute = (root, file) => {
     // join into a url
     .join('/')
 
-  const [url, params] = parseRawParams(join('/', kebabUrl));
+  const [url, params] = parseRawParams(join('/', kebabUrl))
 
   return {
     url,
@@ -36,10 +38,16 @@ export const createRoute = (root, file) => {
 export const logging = log => {
   return log
     ? {
-        log: (label, ...args) => console.log(`${`[${ label }]:`.padEnd(32)}`, ...args),
-        warn: (label, ...args) => console.warn(`${`[${ label }]:`.padEnd(32)}`, ...args),
-        error: (label, ...args) => console.error(`${`[${ label }]:`.padEnd(32)}`, ...args),
-        start: label => (console.time(`${`[${ label }]:`.padEnd(32)}`), () => console.timeEnd(`${`[${ label }]:`.padEnd(32)}`)),
+        log: (label, ...args) =>
+          console.log(`${`[${label}]:`.padEnd(32)}`, ...args),
+        warn: (label, ...args) =>
+          console.warn(`${`[${label}]:`.padEnd(32)}`, ...args),
+        error: (label, ...args) =>
+          console.error(`${`[${label}]:`.padEnd(32)}`, ...args),
+        start: label => (
+          console.time(`${`[${label}]:`.padEnd(32)}`),
+          () => console.timeEnd(`${`[${label}]:`.padEnd(32)}`)
+        ),
       }
     : {
         log: () => {},
@@ -60,7 +68,7 @@ export const generateFingerprint = (name, source) => {
     .shift()
     .split('.')
 
-   // extension should always be .js
+  // extension should always be .js
   // in some cases, .svelte is what is incoming
   return `${filename}-${sha}.js`
 }
@@ -85,55 +93,57 @@ export const Kebab2Pascal = str =>
 export const Kebab2Camel = str =>
   str.replace(/-[a-z]/g, letter => letter[1].toUpperCase())
 
-
 /**
-*
-* @param {object} file
-* @param {string} file.ssr base64 encoded compiled ssr template
-* @param {string} file.dom path to module import file
-* @param {string} file iife path to no-module import file
-* @param {route} route
-* @param {object} route.props all props (user supplied from setup.js & url params)
-* @param {object} options middleware options
-*/
-export const renderTemplate = async ({ ssr, dom, iife }, { props }, options) => {
- // Get bundled SSR details from memory
- const { default: renderer } = await import(get(ssr))
+ *
+ * @param {object} file
+ * @param {string} file.ssr base64 encoded compiled ssr template
+ * @param {string} file.dom path to module import file
+ * @param {string} file iife path to no-module import file
+ * @param {route} route
+ * @param {object} route.props all props (user supplied from setup.js & url params)
+ * @param {object} options middleware options
+ */
+export const renderTemplate = async (
+  { ssr, dom, iife },
+  { props },
+  options
+) => {
+  // Get bundled SSR details from memory
+  const { default: renderer } = await import(get(ssr))
 
- // Render cached Svelte SSR template with current props
- const out = renderer.render(props)
+  // Render cached Svelte SSR template with current props
+  const out = renderer.render(props)
 
- const script = [
-   // hydrate client side props
-   props &&
-     `<script>window.__SVELTE_PROPS__=${JSON.stringify(props)}</script>`,
+  const script = [
+    // hydrate client side props
+    props &&
+      `<script>window.__SVELTE_PROPS__=${JSON.stringify(props)}</script>`,
 
-   // modern module script
-   `<script src=${join('/', '_js', `${dom}`)} type=module></script>`,
+    // modern module script
+    `<script src=${join('/', '_js', `${dom}`)} type=module></script>`,
 
-   // no-module script (older browsers and things...)
-   `<script src=${join('/', '_js', `${iife}`)} nomodule></script>`,
+    // no-module script (older browsers and things...)
+    `<script src=${join('/', '_js', `${iife}`)} nomodule></script>`,
 
-   // hot reloading... ok I know its not the webpack HMR, but still
-   options.hmr && `<script src=/@hmr-client type=module></script>`,
- ].join('')
+    // hot reloading... ok I know its not the webpack HMR, but still
+    options.hmr && `<script src=/@hmr-client type=module></script>`,
+  ].join('')
 
- // compile template & return the result
- // TODO: in production, just read the template once & cache it?
- return ejs.render(
-   readFileSync(options.template, 'utf-8'),
-   {
-     head: out.head,
-     style: `<style>${out.css.code}</style>`,
-     script,
-     html: out.html,
-   },
-   {
-     rmWhitespace: true,
-   }
- )
+  // compile template & return the result
+  // TODO: in production, just read the template once & cache it?
+  return ejs.render(
+    readFileSync(options.template, 'utf-8'),
+    {
+      head: out.head,
+      style: `<style>${out.css.code}</style>`,
+      script,
+      html: out.html,
+    },
+    {
+      rmWhitespace: true,
+    }
+  )
 }
-
 
 export const routesMatch = (r1, r2) => {
   // break into url segments

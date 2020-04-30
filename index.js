@@ -2,7 +2,7 @@
 import Koa from 'koa'
 import { join, resolve } from 'path'
 import minimist from 'minimist'
-import { logging, createRoute } from './utils.js'
+import { logging, createRoute } from './src/utilities/utils.js'
 import {
   applyBundledJSMiddleware,
   applyPublicMiddleware,
@@ -10,9 +10,9 @@ import {
   applySSRMiddleware,
   applyWebsocketMiddleware,
   start,
-} from './koaUtils.js'
+} from './src/middleware/applyMiddlewareToApp.js'
 import chokidar from 'chokidar'
-import data from './shared/data.js'
+import data from './src/shared/data.js'
 import chalk from 'chalk'
 import http from 'http'
 import { existsSync } from 'fs'
@@ -107,7 +107,7 @@ watcher
       chalk.green('File Updated'),
       key.replace(options.root, '')
     )
-    const parentOrChild = data.cache().find(d => d.dependencies.includes(key))
+    const parentOrChild = data.getDep({ key })
     if (parentOrChild) {
       data.delete({ key: parentOrChild.key })
     }

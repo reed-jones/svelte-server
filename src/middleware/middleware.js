@@ -1,10 +1,10 @@
 import { createReadStream } from 'fs'
 import { join, resolve } from 'path'
-import { get } from './shared/filesystem.js'
-import { read } from './shared/cache-read.js'
-import bundle from './shared/bundle.js'
+import { get } from '../shared/filesystem.js'
+import { read } from '../shared/cache-read.js'
+import bundle from '../shared/bundle.js'
 import chalk from 'chalk'
-import { renderTemplate, routesMatch, getParams } from './utils.js'
+import { renderTemplate, routesMatch, getParams } from '../utilities/utils.js'
 
 /** Static File Serving Middleware */
 export { default as serverPublicFolder } from 'koa-static'
@@ -14,9 +14,7 @@ export const affixRouteToContextMiddleware = ({ app, options }) => async (
   next
 ) => {
   // find & set the current route
-  app.context.route = options.routes.find(route =>
-    routesMatch(route.url, ctx.url)
-  )
+  app.context.route = options.routes.find(route => routesMatch(route.url, ctx.url))
 
   if (ctx.route) {
     // if a route was found, get parsed params
@@ -69,7 +67,6 @@ export const serveBundledJsFiles = ({ options }) => async (ctx, next) => {
 
 export const serveRenderedHTML = ({ options }) => async (ctx, next) => {
   // lookup route by url
-  // const route = options.routes.find(route => routesMatch(route.url, ctx.url))
   if (!ctx.route) {
     return next()
   }

@@ -1,5 +1,5 @@
 import { put } from './filesystem.js'
-import { generateFingerprint } from '../utils.js'
+import { generateFingerprint } from '../utilities/utils.js'
 
 // not really a 'cache-write' anymore...
 export const write = (name, code) => {

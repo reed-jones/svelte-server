@@ -1,4 +1,3 @@
-import { join, resolve } from 'path'
 import { existsSync } from 'fs'
 import data from './data.js'
 

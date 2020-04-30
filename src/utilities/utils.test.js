@@ -9,6 +9,9 @@ import {
   getParams,
   parseRawParams,
   routesMatch,
+  createRoute,
+  logging,
+  renderTemplate
 } from './utils.js'
 
 it('generates a unique deterministic fingerprint', () => {
