@@ -1,12 +1,12 @@
 {
   "name": "svelte-server",
-  "version": "0.0.6",
-  "main": "index.js",
+  "version": "0.1.0",
+  "main": "server.js",
   "author": "Reed Jones <reedjones@reedjones.com>",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "svelte-server": "./index.js"
+    "svelte-server": "./bin/svelteServer.js"
   },
   "dependencies": {
     "@babel/core": "^7.9.0",

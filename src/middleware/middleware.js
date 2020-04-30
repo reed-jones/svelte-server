@@ -24,7 +24,7 @@ export const affixRouteToContextMiddleware = ({ app, options }) => async (
     // of the component. If no function is provided, just resolve the (possibly empty) props
     // ctx.route.props
     const propCallback =
-      options.userConfig?.props?.[ctx.route.url] ??
+      options.props?.[ctx.route.url] ??
       Promise.resolve.bind(Promise)
     app.context.route.props = await propCallback(params)
   }

@@ -108,11 +108,12 @@ export const renderTemplate = async (
   { props },
   options
 ) => {
+
   // Get bundled SSR details from memory
   const { default: renderer } = await import(get(ssr))
 
   // Render cached Svelte SSR template with current props
-  const out = renderer.render(props)
+  const out = renderer.render(props ?? {})
 
   const script = [
     // hydrate client side props
