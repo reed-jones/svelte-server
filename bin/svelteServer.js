@@ -25,7 +25,16 @@ const setupFile = existsSync(join(resolve(), 'setup.js'))
   : Promise.resolve(null)
 
 setupFile.then(setup => {
-  svelteServer
-    .config(setup)
-    .listen() // optional port # - finds first free port if not supplied
+    svelteServer.config({
+        ...setup,
+
+        // // cli arg overwrites
+        // production: !args.dev,
+
+        // hmr: args.hmr,
+
+        // public: args.public,
+
+        // template: args.template
+  }).listen() // optional port # - finds first free port if not supplied
 })
