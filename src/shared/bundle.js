@@ -10,6 +10,7 @@ import chalk from 'chalk'
 import tmpPromise from 'tmp-promise'
 import data from './data.js'
 
+console.log({ svelte: import.meta.url.replace('file://', '').replace('src/shared/bundle.js', 'node_modules/svelte') })
 export const getRollupPlugins = (name, options) => {
   const sharedOptions = {
     css: true,
