@@ -99,7 +99,7 @@ const svelteServer = {
     }
 
     if (this.setup.hmr) {
-      console.log({ meta: (await import.meta).resolve('./client.js') })
+      console.log({ meta: await import.meta.meta.resolve('./client.js') })
       const path = await import.meta.resolve('./client.js', import.meta.url)
       console.log({ path })
       const contents = readFileSync(path)
