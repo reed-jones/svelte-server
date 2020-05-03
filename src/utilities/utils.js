@@ -19,7 +19,7 @@ export const createRoute = (root, file) => {
     // splits folders & filenames
     .split('/')
     // removes index.svelte, .svelte
-    .map(a => Pascal2Kebab(a).replace(/(\/?index)?\.svelte$/, ''))
+    .map(a => Pascal2Kebab(a).replace(/(\/?index)?\.(svelte|pug|md)$/, ''))
     // removes any 'empty' sections (likely index.svelte)
     .filter(a => a)
     // join into a url
@@ -117,8 +117,7 @@ export const renderTemplate = async (
 
   const script = [
     // hydrate client side props
-    props &&
-      `<script>window.__SVELTE_PROPS__=${JSON.stringify(props)}</script>`,
+    `<script id="svelte-state">window.__SVELTE_PROPS__=${JSON.stringify(props ?? {})}</script>`,
 
     // modern module script
     `<script src=${join('/', '_js', `${dom}`)} type=module async defer></script>`,
@@ -136,7 +135,7 @@ export const renderTemplate = async (
     readFileSync(options.template, 'utf-8'),
     {
       head: out.head,
-      style: `<style>${out.css.code}</style>`,
+      style: `<style>${options.production && out.css.code ?? ''}</style>`,
       script,
       html: out.html,
     },

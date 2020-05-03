@@ -3,6 +3,7 @@ import { join, resolve } from 'path'
 import { get } from '../shared/filesystem.js'
 import { read } from '../shared/cache-read.js'
 import bundle from '../shared/bundle.js'
+import data from '../shared/data.js'
 import chalk from 'chalk'
 import { renderTemplate, routesMatch, getParams } from '../utilities/utils.js'
 
@@ -82,11 +83,26 @@ export const serveRenderedHTML = ({ options }) => async (ctx, next) => {
 
   // read file details from cache, or bundle if unavailable
   // routes with params cannot be cached (currently)
-  const file =
-    read({ route: ctx.route }) ?? (await bundle({ route: ctx.route }, options))
+  try {
+    const file = read({ route: ctx.route }) ?? (await bundle({ route: ctx.route }, options))
 
-  ctx.type = 'html'
-  ctx.body = await renderTemplate(file, ctx.route.props, options)
+    ctx.type = 'html'
+    ctx.body = await renderTemplate(file, ctx.route.props, options)
+  } catch (err) {
+    // just like refresh everything I guess
+    // should only be failing to bundle in development anyways?
+    if (!options.production) {
+      options.logging.error("Failed to render template", err)
+      data.clear()
+
+      ctx.status = 500
+      ctx.type = 'html'
+      ctx.body = `
+      <h1>Well that wasn't supposed to happen...</h1>
+      <script>setTimeout(() => {location.reload()},2500)</script>
+      `
+    }
+  }
 
   ssrTimer()
 }

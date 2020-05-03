@@ -5,7 +5,7 @@ import data from './shared/data.js'
 import chalk from 'chalk'
 
 export const setupWatcher = ({ options }) => {
-  const watcher = chokidar.watch(options.watch.map(path => join(resolve(), path, '**/*.svelte')))
+  const watcher = chokidar.watch(options.watch.map(path => join(resolve(), path, '**/*.(svelte|pug|md)')))
 
   watcher
     .on('unlink', path => {

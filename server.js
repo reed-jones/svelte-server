@@ -34,15 +34,17 @@ const svelteServer = {
       ? _userTemplate
       : join(resolve(), 'node_modules', 'svelte-server', 'index.template.ejs');
     const defaultAliases = {
-      ...(existsSync(join(resolve(), 'pages')) && {
-        '@pages': './pages',
-      }),
-      ...(existsSync(join(resolve(), 'components')) && {
-        '@components': './components',
-      }),
-      ...(existsSync(join(resolve(), 'layouts')) && {
-        '@layouts': './layouts',
-      }),
+      '@components': './components',
+      '@layouts': './layouts',
+      '@pages': './pages'
+  }
+
+    const mapAliases = aliases => {
+      return Object.fromEntries(Object.entries(aliases).map(([alias, path]) => {
+        if (existsSync(join(resolve(), path))) {
+          return [alias, join(resolve(), path)];
+        }
+      }))
     }
 
     Object.assign(this.setup, {
@@ -67,11 +69,13 @@ const svelteServer = {
       // html template file
       template: templateFile,
 
+      svelteOptions: setup?.config?.svelteOptions ?? setup?.svelteOptions ?? {},
+
       // chokidar watch locations (just looks for .svelte files) defaults to the main pages directory
       watch: setup?.config?.watch ?? setup?.watch ?? [setup?.config?.path ?? setup?.path ?? './pages'],
 
       // import aliases (not yet enabled)
-      aliases: setup?.config?.aliases ?? setup?.aliases ?? defaultAliases,
+      alias: mapAliases(setup?.config?.alias ?? setup?.alias ?? defaultAliases),
 
       // in prod, minify etc. NODE_ENV
       production: inProduction,
