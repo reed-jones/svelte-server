@@ -34,7 +34,7 @@ export const getRollupPlugins = (name, options) => {
     }),
     nodeResolve: nodeResolve({
       browser: true,
-      dedupe: ['svelte'],
+      // dedupe: ['svelte'],
       extensions: [
         '.mjs',
         '.js',
