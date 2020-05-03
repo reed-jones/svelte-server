@@ -99,7 +99,7 @@ const svelteServer = {
     }
 
     if (this.setup.hmr) {
-      const contents = readFileSync(join('..', 'svelte-server', 'client.js'))
+      const contents = readFileSync(require.resolve('svelte-server/client.js'))
       put('hmr-client.js', contents)
     }
 
@@ -107,9 +107,10 @@ const svelteServer = {
      * Base 'pages' path is the only required file.
      * Can be renamed, but needs to exist in some form
      */
-    if (!existsSync(this.setup.root)) {
-      mkdirSync(this.setup.root)
-    }
+    // TODO: --init command
+    // if (!existsSync(this.setup.root)) {
+    //   mkdirSync(this.setup.root)
+    // }
 
     // listen() port overrides all
     const options = this.setup
