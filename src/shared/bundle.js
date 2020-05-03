@@ -30,11 +30,14 @@ export const getRollupPlugins = (name, options) => {
       ...options.svelteOptions
     }),
     alias: alias({
-      entries: options.alias ?? {},
+      entries: {
+        ...options.alias ?? {},
+        'svelte/': import.meta.url.replace('file://', '').replace('src/shared/bundle.js', 'node_modules/svelte')
+      },
     }),
     nodeResolve: nodeResolve({
       browser: true,
-      // dedupe: ['svelte'],
+      dedupe: ['svelte'],
       extensions: [
         '.mjs',
         '.js',
