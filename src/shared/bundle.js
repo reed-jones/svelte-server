@@ -9,6 +9,7 @@ import commonjs from '@rollup/plugin-commonjs'
 import chalk from 'chalk'
 import tmpPromise from 'tmp-promise'
 import data from './data.js'
+import { join, resolve } from 'path'
 
 export const getRollupPlugins = (name, options) => {
   const sharedOptions = {
@@ -19,11 +20,8 @@ export const getRollupPlugins = (name, options) => {
   const pkgAliases = {}
   // TODO: use import.meta.resolve when its no longer behind a flag
     // https://nodejs.org/api/esm.html#esm_no_require_resolve
-    // TODO: Only provide svelte alias if not installed in the project
-    // (use user install first)
-  const npxPkg = import.meta.url.replace('file://', '').replace('src/shared/bundle.js', 'node_modules/svelte')
-  if (existsSync(npxPkg)) {
-    pkgAliases.svelte = npxPkg
+  if (!existsSync( join(resolve(), 'node_modules', 'svelte') )) {
+    pkgAliases.svelte = import.meta.url.replace('file://', '').replace('src/shared/bundle.js', 'node_modules/svelte')
   }
 
   return {
@@ -42,6 +40,7 @@ export const getRollupPlugins = (name, options) => {
     alias: alias({
       entries: {
         ...options.alias ?? {},
+        ...pkgAliases
       },
     }),
     nodeResolve: nodeResolve({
