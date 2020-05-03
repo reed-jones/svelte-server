@@ -10,7 +10,7 @@ import chalk from 'chalk'
 import tmpPromise from 'tmp-promise'
 import data from './data.js'
 
-console.log({ svelte: import.meta.url.replace('file://', '').replace('src/shared/bundle.js', 'node_modules/svelte') })
+console.log({ svelte: import.meta.url.replace('file://', '').replace('svelte-server/src/shared/bundle.js', 'svelte') })
 export const getRollupPlugins = (name, options) => {
   const sharedOptions = {
     css: true,
@@ -33,7 +33,7 @@ export const getRollupPlugins = (name, options) => {
     alias: alias({
       entries: {
         ...options.alias ?? {},
-        'svelte/': import.meta.url.replace('file://', '').replace('src/shared/bundle.js', 'node_modules/svelte')
+        'svelte/': import.meta.url.replace('file://', '').replace('svelte-server/src/shared/bundle.js', 'svelte')
       },
     }),
     nodeResolve: nodeResolve({
