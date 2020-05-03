@@ -39,15 +39,8 @@ export const serveHMRClient = () => async (ctx, next) => {
     return next()
   }
 
-  const HMRClientPath = join(
-    resolve(),
-    'node_modules',
-    'svelte-server',
-    'client.js'
-  )
-
   ctx.type = 'js'
-  ctx.body = createReadStream(HMRClientPath)
+  ctx.body = createReadStream('../../client.js')
 }
 
 export const serveBundledJsFiles = ({ options }) => async (ctx, next) => {
