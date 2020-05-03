@@ -99,7 +99,7 @@ const svelteServer = {
     }
 
     if (this.setup.hmr) {
-      const contents = readFileSync('./client.js')
+      const contents = readFileSync(resolve('./client.js'))
       put('hmr-client.js', contents)
     }
 
