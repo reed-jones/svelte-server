@@ -135,7 +135,7 @@ export const renderTemplate = async (
     readFileSync(options.template, 'utf-8'),
     {
       head: out.head,
-      style: `<style>${options.production && out.css.code ?? ''}</style>`,
+      style: `<style>${options.production ? out.css.code : ''}</style>`,
       script,
       html: out.html,
     },
