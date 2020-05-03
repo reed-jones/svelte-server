@@ -10,8 +10,9 @@ import {
   start,
 } from './src/middleware/applyMiddlewareToApp.js'
 import http from 'http'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync } from 'fs'
 import { setupWatcher } from './src/watcher.js'
+import { put } from './src/shared/filesystem.js'
 
 const svelteServer = {
   setup: {/* gets filled with config() */},
@@ -95,6 +96,11 @@ const svelteServer = {
   listen(port = this.setup?.port ?? null) {
     if (!Object.keys(this.setup).length) {
       this.config() // Initialize all default settings
+    }
+
+    if (this.setup.hmr) {
+      const contents = readFileSync('./client.js')
+      put('hmr-client.js', contents)
     }
 
     /**

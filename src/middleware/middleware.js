@@ -40,7 +40,7 @@ export const serveHMRClient = () => async (ctx, next) => {
   }
 
   ctx.type = 'js'
-  ctx.body = createReadStream('../../client.js')
+  ctx.body = get('hmr-client.js')
 }
 
 export const serveBundledJsFiles = ({ options }) => async (ctx, next) => {
