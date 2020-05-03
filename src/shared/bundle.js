@@ -4,7 +4,7 @@ import terser from 'rollup-plugin-terser'
 import nodeResolve from '@rollup/plugin-node-resolve'
 import alias from '@rollup/plugin-alias'
 import sveltePlugin from 'rollup-plugin-svelte'
-import { writeFileSync } from 'fs'
+import { writeFileSync, existsSync } from 'fs'
 import commonjs from '@rollup/plugin-commonjs'
 import chalk from 'chalk'
 import tmpPromise from 'tmp-promise'
@@ -14,6 +14,16 @@ export const getRollupPlugins = (name, options) => {
   const sharedOptions = {
     css: true,
     dev: !options.production,
+  }
+
+  const pkgAliases = {}
+  // TODO: use import.meta.resolve when its no longer behind a flag
+    // https://nodejs.org/api/esm.html#esm_no_require_resolve
+    // TODO: Only provide svelte alias if not installed in the project
+    // (use user install first)
+  const npxPkg = import.meta.url.replace('file://', '').replace('src/shared/bundle.js', 'node_modules/svelte')
+  if (existsSync(npxPkg)) {
+    pkgAliases.svelte = npxPkg
   }
 
   return {
@@ -32,9 +42,6 @@ export const getRollupPlugins = (name, options) => {
     alias: alias({
       entries: {
         ...options.alias ?? {},
-        // TODO: use import.meta.resolve when its no longer behind a flag
-        // https://nodejs.org/api/esm.html#esm_no_require_resolve
-        'svelte': import.meta.url.replace('file://', '').replace('src/shared/bundle.js', 'node_modules/svelte')
       },
     }),
     nodeResolve: nodeResolve({

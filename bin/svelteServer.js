@@ -29,7 +29,9 @@ setupFile.then(setup => {
         ...setup,
 
         // // cli arg overwrites
-        // production: !args.dev,
+
+        //
+        production: !args.dev,
 
         // hmr: args.hmr,
 

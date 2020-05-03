@@ -26,7 +26,8 @@ const svelteServer = {
    * @return {this} returns the configured server... just call .listen()
    */
   config(setup = null) {
-    const inProduction = process.env.NODE_ENV === 'production'
+    const inDev = !(setup?.config?.production ?? setup?.production ?? true)
+    const inProduction = !inDev
     const hmrEnabled = process.env.HMR_ENABLED === 'true'
     const publicFolder = join(resolve(), setup?.config?.public ?? setup?.public ?? 'public')
     const _templateName = setup?.config?.template ?? setup?.template ?? 'index.template.ejs';
@@ -116,6 +117,9 @@ const svelteServer = {
     options.port = port
 
     const app = new Koa()
+
+    app.env = this.setup.production ? 'production' : 'development'
+
     const server = http.createServer(app.callback())
     const watcher = setupWatcher({ options })
 
