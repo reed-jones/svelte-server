@@ -93,13 +93,16 @@ const svelteServer = {
    *
    * @param {number?} port
    */
-  listen(port = this.setup?.port ?? null) {
+  async listen(port = this.setup?.port ?? null) {
     if (!Object.keys(this.setup).length) {
       this.config() // Initialize all default settings
     }
 
     if (this.setup.hmr) {
-      const contents = readFileSync(require.resolve('svelte-server/client.js'))
+      const path = await import.meta.resolve('./client.js')
+      console.log({ path })
+      const contents = readFileSync(path)
+
       put('hmr-client.js', contents)
     }
 
