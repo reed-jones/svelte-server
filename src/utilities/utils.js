@@ -125,7 +125,7 @@ export const renderTemplate = async (
     // no-module script (older browsers and things...)
     `<script src=${join('/', '_js', `${iife}`)} nomodule async defer></script>`,
 
-    // hot reloading... ok I know its not the webpack HMR, but still
+    // hot reloading... ok I know its not the webpack HMR, but still...
     options.hmr && `<script src=/@hmr-client type=module async defer></script>`,
   ].join('')
 

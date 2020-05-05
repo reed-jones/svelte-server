@@ -62,6 +62,24 @@ if (args.init) {
       );
     });
   }
+} else if (args.ssg) {
+  // Static Site Generator goes here
+  // setupFile.then(setup => {
+  //   svelteServer.config({ ... }).build()
+  // })
+
+  const setupFile = existsSync(join(resolve(), "setup.js"))
+    ? import(join(resolve(), "setup.js")).then((a) => a.default)
+    : Promise.resolve(null);
+
+  setupFile.then((setup) => {
+    svelteServer
+      .config({
+        ...setup,
+        production: !args.dev,
+      }).build()
+  })
+
 } else {
   const setupFile = existsSync(join(resolve(), "setup.js"))
     ? import(join(resolve(), "setup.js")).then((a) => a.default)

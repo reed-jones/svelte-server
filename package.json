@@ -1,6 +1,6 @@
 {
   "name": "svelte-server",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "main": "server.js",
   "author": "Reed Jones <reedjones@reedjones.com>",
   "license": "MIT",
@@ -23,7 +23,6 @@
     "minimist": "^1.2.5",
     "portfinder": "^1.0.25",
     "rollup": "^2.7.2",
-    "rollup-plugin-babel": "^4.4.0",
     "rollup-plugin-svelte": "^5.2.1",
     "rollup-plugin-terser": "^5.3.0",
     "svelte": "^3.21.0",

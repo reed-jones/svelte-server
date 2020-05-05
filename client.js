@@ -24,7 +24,9 @@ socket.addEventListener('message', async ({ data }) => {
     case 'change':
       log(`File changed: ${name}`)
       const { default: component } = await import(`/_js/${path}`)
+      const scrollY = window.scrollY;
       new component({ target: document.body, hydrate: true, props: window.__SVELTE_PROPS__ })
+      window.scrollTo({ top: scrollY })
       break
     case 'unlink':
       log(`File removed: ${name}`)
