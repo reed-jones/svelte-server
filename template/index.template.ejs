@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width,initial-scale=1'>
+    <link rel='icon' type='image/png' href='/favicon-16x16.png'>
+    <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+    <% if (head) { %>
+      <%- head %>
+    <% } else { %>
+      <title>Svelte Server</title>
+    <% } %>
+
+    <%- style %>
+
+    <%- script %>
+  </head>
+  <body>
+    <%- html %>
+  </body>
+</html>

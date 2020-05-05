@@ -1,6 +1,6 @@
 {
   "name": "svelte-server",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "main": "server.js",
   "author": "Reed Jones <reedjones@reedjones.com>",
   "license": "MIT",

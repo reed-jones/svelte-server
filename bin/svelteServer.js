@@ -1,11 +1,18 @@
 #!/usr/bin/env node
-import minimist from 'minimist'
-import { join, resolve } from 'path'
-import { existsSync } from 'fs'
+import minimist from "minimist";
+import { join, resolve, basename, dirname } from "path";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  lstatSync,
+} from "fs";
 
-import svelteServer from '../server.js'
+import svelteServer from "../server.js";
 
-const args = minimist(process.argv.slice(2))
+const __dirname = dirname(new URL(import.meta.url).pathname);
+const args = minimist(process.argv.slice(2));
 
 /**
  * User Configuration. All options are optional and
@@ -20,12 +27,49 @@ const args = minimist(process.argv.slice(2))
  * setup.config.template    template file
  */
 
-const setupFile = existsSync(join(resolve(), 'setup.js'))
-  ? import(join(resolve(), 'setup.js')).then(a => a.default)
-  : Promise.resolve(null)
+function copyFileSync(source, target) {
+  //if target is a directory a new file with the same name will be created
+  const targetFile =
+    existsSync(target) && lstatSync(target).isDirectory()
+      ? join(target, basename(source))
+      : target;
 
-setupFile.then(setup => {
-    svelteServer.config({
+  writeFileSync(targetFile, readFileSync(source));
+}
+
+if (args.init) {
+  if (args.init === true) {
+    console.log(
+      "Specify the project name i.e. `npx svelte-server --init MyProject`"
+    );
+  } else {
+    ["/", "pages", "layouts", "components", "public"].forEach((dir) => {
+      if (!existsSync(join(resolve(), args.init, dir))) {
+        mkdirSync(join(resolve(), args.init, dir));
+      }
+    });
+
+    [
+      "setup.js",
+      "README.md",
+      "index.template.ejs",
+      "public/favicon-16x16.png",
+      "pages/Index.svelte",
+    ].forEach((file) => {
+      copyFileSync(
+        join(__dirname, '..', 'template', file),
+        join(resolve(), args.init, file)
+      );
+    });
+  }
+} else {
+  const setupFile = existsSync(join(resolve(), "setup.js"))
+    ? import(join(resolve(), "setup.js")).then((a) => a.default)
+    : Promise.resolve(null);
+
+  setupFile.then((setup) => {
+    svelteServer
+      .config({
         ...setup,
 
         // // cli arg overwrites
@@ -38,5 +82,7 @@ setupFile.then(setup => {
         // public: args.public,
 
         // template: args.template
-  }).listen() // optional port # - finds first free port if not supplied
-})
+      })
+      .listen(); // optional port # - finds first free port if not supplied
+  });
+}

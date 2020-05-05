@@ -1,5 +1,5 @@
 import Koa from 'koa'
-import { join, resolve } from 'path'
+import { join, resolve, dirname } from 'path'
 import { logging } from './src/utilities/utils.js'
 import {
   applyBundledJSMiddleware,
@@ -13,7 +13,7 @@ import http from 'http'
 import { existsSync, mkdirSync, readFileSync } from 'fs'
 import { setupWatcher } from './src/watcher.js'
 import { put } from './src/shared/filesystem.js'
-
+const __dirname = dirname(new URL(import.meta.url).pathname);
 const svelteServer = {
   setup: {/* gets filled with config() */},
 
@@ -100,7 +100,7 @@ const svelteServer = {
     }
 
     if (this.setup.hmr) {
-      const contents = readFileSync(join('..', 'svelte-server', 'client.js'))
+      const contents = readFileSync(join(__dirname, 'client.js'))
       put('hmr-client.js', contents)
     }
 
