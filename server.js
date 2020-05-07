@@ -118,7 +118,7 @@ const svelteServer = {
       props: setup?.props ?? null,
 
       // hot module reloading
-      hmr: setup?.config?.hot || setup?.hot,
+      hmr: setup?.config?.hmr || setup?.hmr,
 
       // show logging (defaults on in dev, off in prod)
       logging: logging(

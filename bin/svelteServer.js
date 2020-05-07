@@ -58,7 +58,6 @@ if (args.init === true) {
   files.forEach((file) => {
     copyFileSync(file, join(resolve(), args.init, file));
   });
-
 } else if (args.ssg) {
   /**
    * Static Site Generator
@@ -94,7 +93,7 @@ if (args.init === true) {
         production: setup?.config?.production ?? !args.dev,
 
         // hmr: args.hmr,
-        hmr: setup?.config?.hmr ?? args.hmr
+        hmr: setup?.config?.hmr ?? args.hmr,
 
         // public: args.public,
 
