@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from "fs";
 import http from "http";
 import Koa from "koa";
 import { dirname, join, resolve } from "path";
@@ -11,9 +18,14 @@ import {
   start,
 } from "./src/middleware/applyMiddlewareToApp.js";
 import { put, get } from "./src/shared/filesystem.js";
-import { logging, createRoute, renderTemplate } from "./src/utilities/utils.js";
+import {
+  logging,
+  createRoute,
+  renderTemplate,
+  walkFilesSync,
+} from "./src/utilities/utils.js";
 import { setupWatcher } from "./src/watcher.js";
-import bundle from './src/shared/bundle.js'
+import bundle from "./src/shared/bundle.js";
 
 /**
  * TODO: Major Refactoring
@@ -36,19 +48,6 @@ import bundle from './src/shared/bundle.js'
 
 const __dirname = dirname(new URL(import.meta.url).pathname);
 
-const walkSync = (dir, fileList = null) => {
-  const files = readdirSync(dir);
-  fileList = fileList ?? [];
-  files.forEach((file) => {
-    if (statSync(join(dir, file)).isDirectory()) {
-      fileList = walkSync(join(dir, file, "/"), fileList);
-    } else {
-      fileList.push(join(dir, file));
-    }
-  });
-  return fileList;
-};
-
 const generateStaticSite = async (routes, options) => {
   const bundlePromises = routes.map(async (route) => {
     const propCallback =
@@ -60,14 +59,16 @@ const generateStaticSite = async (routes, options) => {
     };
   });
 
-  const bundles = await Promise.all(bundlePromises)
+  const bundles = await Promise.all(bundlePromises);
 
-  return await Promise.all(bundles.map(async ({ route, props, bundle }) => ({
-    route,
-    props,
-    bundle,
-    template: await renderTemplate(bundle, props, options)
-  })));
+  return await Promise.all(
+    bundles.map(async ({ route, props, bundle }) => ({
+      route,
+      props,
+      bundle,
+      template: await renderTemplate(bundle, props, options),
+    }))
+  );
 };
 
 const svelteServer = {
@@ -86,7 +87,6 @@ const svelteServer = {
   config(setup = null) {
     const inDev = !(setup?.config?.production ?? setup?.production ?? true);
     const inProduction = !inDev;
-    const hmrEnabled = process.env.HMR_ENABLED === "true";
     const publicFolder = join(
       resolve(),
       setup?.config?.public ?? setup?.public ?? "public"
@@ -118,7 +118,7 @@ const svelteServer = {
       props: setup?.props ?? null,
 
       // hot module reloading
-      hmr: hmrEnabled || setup?.config?.hmr || setup?.hmr,
+      hmr: setup?.config?.hot || setup?.hot,
 
       // show logging (defaults on in dev, off in prod)
       logging: logging(
@@ -162,35 +162,39 @@ const svelteServer = {
     }
 
     // list all the files
-    const routes = walkSync(this.setup.root)
+    const routes = walkFilesSync(this.setup.root)
       .map((file) => createRoute(this.setup.root, file))
       .filter((route) => route.params.length === 0); // parameters not available during static site generation (for now?)
 
-    generateStaticSite(routes, this.setup)
-      .then(files => {
-        const htmlBase = join(resolve(), 'html')
-        if (!existsSync(htmlBase)) {
-          mkdirSync(htmlBase);
-        }
+    generateStaticSite(routes, this.setup).then((files) => {
+      const htmlBase = join(resolve(), "html");
+      const jsBase = join(htmlBase, "_js");
 
-        const jsBase = join(htmlBase, '_js')
-        if (!existsSync(jsBase)) {
-          mkdirSync(jsBase);
-        }
+      files.forEach((file) => {
+        const assets = [
+          [join(jsBase, file.bundle.dom), get(file.bundle.dom)],
+          [join(jsBase, file.bundle.iife), get(file.bundle.iife)],
+          [join(htmlBase, file.route.url, "index.html"), file.template],
+        ];
 
-        files.forEach(file => {
-          if (!existsSync(join(htmlBase, file.route.url))) {
-            mkdirSync(join(htmlBase, file.route.url), { recursive: true });
+        assets.forEach(([path, contents]) => {
+          if (!existsSync(dirname(path))) {
+            mkdirSync(dirname(path), { recursive: true });
           }
 
-          writeFileSync(join(jsBase, file.bundle.dom), get(file.bundle.dom))
-          writeFileSync(join(jsBase, file.bundle.iife), get(file.bundle.iife))
-          writeFileSync(join(htmlBase, file.route.url, 'index.html'), file.template)
-        })
-      })
+          writeFileSync(path, contents);
+        });
+      });
 
-    // TODO: Copy contents of public folder over
-    // maybe something like: https://gist.github.com/rraallvv/7502a566cd358b347c0c81571c526770
+      // Copy static assets from public folder
+      const staticAssets = walkFilesSync(join(this.setup.public));
+      staticAssets.forEach((asset) => {
+        writeFileSync(
+          asset.replace(this.setup.public, htmlBase),
+          readFileSync(asset)
+        );
+      });
+    });
   },
 
   /**

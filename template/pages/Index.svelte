@@ -1,3 +1,10 @@
+<script>
+  let counter = 0
+  function increment() {
+    counter++
+  }
+</script>
+
 <style>
   :global(body) {
     margin: 0;
@@ -37,7 +44,6 @@
   }
 
   .docs-link {
-    text-decoration: none;
     background: #4c597b;
     color: white;
     border-radius: 0.4rem;
@@ -55,6 +61,8 @@
       </h1>
       <p>(Unofficial)</p>
     </div>
-    <a href="/docs/#" class="docs-link">Read The Docs</a>
+    <span on:click={increment} class="docs-link">
+      Increment Counter: {counter}
+    </span>
   </header>
 </main>

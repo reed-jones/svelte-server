@@ -1,9 +1,22 @@
 import { join } from 'path'
 import crypto from 'crypto'
-import { readFileSync } from 'fs'
+import { readFileSync, readdirSync, statSync } from 'fs'
 import ejs from 'ejs'
 
 import { get } from '../shared/filesystem.js'
+
+export const walkFilesSync = (dir, fileList = null) => {
+  const files = readdirSync(dir);
+  fileList = fileList ?? [];
+  files.forEach((file) => {
+    if (statSync(join(dir, file)).isDirectory()) {
+      fileList = walkFilesSync(join(dir, file, "/"), fileList);
+    } else {
+      fileList.push(join(dir, file));
+    }
+  });
+  return fileList;
+};
 
 export const parseRawParams = (url, params = []) => [
   url
